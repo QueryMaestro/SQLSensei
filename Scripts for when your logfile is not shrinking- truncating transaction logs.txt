@@ -1,0 +1,11 @@
+DBCC SQLPERF (LOGSPACE)
+
+Select name, log_reuse_wait_desc From sys.databases;
+--replication, availability replica,active transaction, check point
+
+--Issue a check point if check point is the issue
+--If replication is the issue, (It means the replication is not healthy) check the replication monitor and fix the issue
+--If Availability replica is the issue
+--If active transaction is the issue, you should kill it
+
+-- You can take T LOG back up and then shrink your TLOG again
