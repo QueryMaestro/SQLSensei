@@ -1,0 +1,14 @@
+# Create a gMSA for each SQL Server service.
+
+$sqlServerServices = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Services\*" | Where-Object { $_.PSChildName -match "MSSQLServer" }
+foreach ($sqlServerService in $sqlServerServices) {
+  New-ADServiceAccount -Name "${sqlServerService.PSChildName}ServiceAccount" -ServicePrincipalNames MSSQLServerService -DNSHostName sqlserver.example.com -AccountPassword (ConvertTo-SecureString -String P@ssw0rd -AsPlainText -Force)
+}
+
+# Grant the gMSAs the necessary permissions.
+
+Add-ADPrincipalGroupMembership -Identity SQLServerServiceAccount -MemberOf Administrators
+
+# Configure the SQL Server services to use the gMSAs.
+
+Get-Service -Name MSSQLServer | Set-Service -StartupType Automatic -LogOnAs SQLServerServiceAccount | Restart-Service
