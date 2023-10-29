@@ -1,0 +1,98 @@
+-- =============================================
+-- Author:	Steve Rezhener
+-- Create date: 10/01/2020
+-- Description:	Create/Remove HADR check for HADR
+ jobs
+-- =============================================
+-- EXEC [dbo].[usp_maintain_HADRcheck4HARDjobs]
+CREATE PROCEDURE [dbo].[usp_maintain_HADRcheck4HARDjobs] 
+AS
+BEGIN
+SET NOCOUNT ON;
+	
+DECLARE @step_command	AS NVARCHAR(MAX)
+DECLARE @job_id			AS UNIQUEIDENTIFIER
+DECLARE @job_name		AS VARCHAR(50)
+	
+-- add hadr check to all hadr-aware jobs
+DECLARE agwarejobs LOCAL STATIC READ_ONLY FORWARD_ONLY CURSOR FOR
+SELECT	jobs.job_id, jobs.name
+FROM	msdb.dbo.sysjobs as jobs
+	inner join msdb.dbo.sysjobsteps as steps on steps.job_id = jobs.job_id 
+WHERE	1=1
+	and jobs.description like '%HADR%'				-- include only hadr aware jobs
+	and steps.step_name != 'HADR Check'					-- exlcude jobs that have AGSteps1 step already
+	and steps.step_id = 1 
+	OPEN	agwarejobs
+	FETCH NEXT  FROM agwarejobs  INTO @job_id, @job_name		
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+	-- HADR.AG1.PRIMARY
+	SET @step_command = N'' + 
+	' DECLARE @ag_name AS VARCHAR(50),  @replica_role AS VARCHAR(50)' +
+	' SELECT @ag_name = PARSENAME(description, 2), @replica_role = PARSENAME(description, 1)' +
+	' FROM msdb.dbo.sysjobs' + 
+	' WHERE job_id = $(ESCAPE_NONE(JOBID))' +
+		' IF EXISTS (' +
+		' SELECT 1' +
+		' FROM 	sys.dm_hadr_availability_replica_states as hadr_avrest' +
+	'		INNER JOIN sys.availability_groups as avgr						ON avgr.group_id = hadr_avrest.group_id' +
+	'		INNER JOIN sys.dm_hadr_availability_group_states as hadr_avgrst	ON hadr_avgrst.group_id = hadr_avrest.group_id' +
+	' WHERE	1=1' +
+	' AND avgr.name = @ag_name ' +
+	' AND hadr_avrest.role_desc = @replica_role ' +
+	' AND avgr.name = @ag_name ' +
+	' AND hadr_avrest.role_desc = @replica_role ' +
+	' AND hadr_avrest.operational_state_desc = ''ONLINE''' +
+	' AND hadr_avrest.connected_state_desc = ''CONNECTED''' +
+	' AND hadr_avrest.synchronization_health_desc = ''HEALTHY''' +
+		')' +
+		' BEGIN' +
+		'' +
+		' PRINT ''stop the job''' +
+		' EXEC msdb.dbo.sp_stop_job @job_id = $(ESCAPE_NONE(JOBID));' +
+		'' +
+		' END' +
+		' ELSE PRINT ''continue with other steps'''
+		PRINT @step_command
+		IF EXISTS(SELECT name from msdb.dbo.sysjobs WHERE job_id = @job_id) -- just in case
+		BEGIN
+			PRINT 'add hadr check step to ' + @job_name + ' job'
+			EXEC msdb.dbo.sp_add_jobstep @job_id = @job_id
+			, @step_id = 1
+			, @step_name = N'HADR Check'
+			, @subsystem = N'TSQL'
+			, @on_success_action = 3 -- Go to next step
+			, @command = @step_command
+		
+		END
+		FETCH NEXT  FROM agwarejobs  INTO @job_id, @job_name	
+	END
+ 
+	CLOSE agwarejobs
+	DEALLOCATE agwarejobs
+	
+	--HADR.AA.PRIMARY
+	-- remove hadr check from all not hadr-aware jobs = left over due to job description change
+	DECLARE notagwarejobs LOCAL STATIC READ_ONLY FORWARD_ONLY CURSOR FOR
+	SELECT	jobs.job_id, jobs.name
+	FROM	msdb.dbo.sysjobsteps as steps 
+		LEFT OUTER JOIN msdb.dbo.sysjobs as jobs on steps.job_id = jobs.job_id 
+	WHERE	1=1
+		and steps.step_name = 'HADR Check'							-- include jobs that have AGSteps1 step = left over
+		and steps.step_id = 1 
+		and ISNULL(jobs.description, '') NOT like '%HADR%'			-- exclude jobs that are not hadr aware
+	OPEN	notagwarejobs
+	FETCH NEXT  FROM notagwarejobs  INTO @job_id, @job_name		
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+	PRINT 'remove hard check step from ' + @job_name + ' job'
+	EXEC msdb.dbo.sp_delete_jobstep @job_id = @job_id
+						, @step_id = 1
+		
+	FETCH NEXT  FROM notagwarejobs  INTO @job_id, @job_name	
+	END
+ 
+	CLOSE notagwarejobs
+	DEALLOCATE notagwarejobs
+END
