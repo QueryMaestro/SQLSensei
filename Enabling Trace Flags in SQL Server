@@ -1,0 +1,34 @@
+Trace Flags in SQL Server can be powerful tools for troubleshooting and optimizing performance. However, they should be used with caution, as they can have unintended consequences if not applied correctly. Here is a list of some common Trace Flags that can be turned on to help troubleshoot and improve performance in SQL Server:
+DBCC TRACEON(Trace Flag#, -1) of DBCC TRACEOFF(Trace Flag#, -1) where -1 is to enable the trace flag globally. It can also be replaced with the session ID if the intent is to enable trace flag for a particular session.
+
+Trace Flag 1222 - Captures deadlock information in the SQL Server error log. This can be useful for diagnosing and resolving deadlock issues.
+
+Trace Flag 1204 - Provides an alternate format for deadlock information in the SQL Server error log. It complements Trace Flag 1222.
+
+Trace Flag 4199 - Enables a variety of query optimizer fixes and improvements. It's useful for ensuring that your queries benefit from the latest optimizer enhancements.
+
+Trace Flag 1117 - Automatically grows all data files in a filegroup when one file is full. This can help prevent uneven file growth and performance problems related to insufficient disk space.
+
+Trace Flag 1118 - Changes the allocation behavior for extent and page allocations in tempdb, which can help reduce contention in tempdb.
+
+Trace Flag 2371 - Helps optimize the query plan for workloads with a large number of partitions. Useful for partitioned tables.
+
+Trace Flag 4199 - Enables a variety of query optimizer fixes and improvements. It's useful for ensuring that your queries benefit from the latest optimizer enhancements.
+
+Trace Flag 652 - Disables generation of a full query plan for certain types of queries. This can be useful for troubleshooting query performance issues.
+
+Trace Flag 3656 - Enables detailed information in the SQL Server error log about backup and restore operations, which can be helpful for diagnosing backup and restore issues.
+
+Trace Flag 2371 - Helps optimize the query plan for workloads with a large number of partitions. Useful for partitioned tables.
+
+Trace Flag 3226 - Suppresses successful backup messages in the SQL Server error log. This can help reduce log noise.
+
+Trace Flag 834 - Forces SQL Server to log all commands that would normally be minimally logged. This can be useful for auditing and troubleshooting purposes.
+
+Trace Flag 9024 - Controls the behavior of the Ghost Cleanup process, which can be useful for addressing performance issues related to ghost records in tables.
+
+Trace Flag 9020 - Enables lightweight query profiling. It can help identify performance bottlenecks in queries.
+
+Trace Flag 9022 - Enables additional query execution statistics in the Showplan output. Useful for detailed query analysis.
+
+Trace Flag 8048 - Disables lock escalation based on the number of locks. Can be useful in scenarios where lock escalation adversely affects performance.
