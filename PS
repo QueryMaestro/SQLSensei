@@ -1,0 +1,24 @@
+# Define the list of servers to check. Use localhost for the local machine
+# or replace with a list of remote server names
+$servers = @('localhost') 
+
+# Iterate over each server
+foreach ($server in $servers) {
+    Write-Host "Checking SQL Server services on $server..."
+
+    # Get all SQL Server related services
+    $sqlServices = Get-Service -ComputerName $server -Name 'MSSQL*', 'SQLAgent*' -ErrorAction SilentlyContinue
+
+    foreach ($service in $sqlServices) {
+        # Get the service account
+        $serviceAccount = (Get-WmiObject win32_service -Filter "name = '$($service.Name)'" -ComputerName $server).StartName
+
+        # Check if the service account is a gMSA
+        # gMSAs usually have a $ at the end of their name
+        if ($serviceAccount -like '*$') {
+            Write-Host "Service $($service.DisplayName) on $server runs under gMSA: $serviceAccount"
+        } else {
+            Write-Host "Service $($service.DisplayName) on $server does not run under gMSA. Current account: $serviceAccount"
+        }
+    }
+}
