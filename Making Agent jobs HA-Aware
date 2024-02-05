@@ -1,0 +1,24 @@
+Here are the items we spoke about when making SQL Agent jobs HA-aware.
+
+Job step
+      _change database context to [master]
+      _add replica or database property check
+      _add set database syntax
+      _add if...begin terminator
+
+Job management
+      _when creating new jobs, use the HA-aware code in the job steps and add to the secondary server
+      _when disabling a job for an indefinite period, add a "delete after" note on the job on both primary and secondary replicas
+      _when deleting jobs, make the commensurate delete operation on the secondary replica
+
+Replica check (SQL 2014 and higher)
+IF (SELECT [master].[sys].[fn_hadr_is_primary_replica]('<dbname>')) = 1
+BEGIN
+      USE [<dbname>];
+END;
+
+Database property check (SQL 2012 and lower)
+IF (SELECT DATABASEPROPERTYEX('<dbname>', 'Updateability')) = 'READ_WRITE'
+BEGIN
+      USE [<dbname>];
+END;
